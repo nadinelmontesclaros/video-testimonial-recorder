@@ -1,0 +1,242 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: Montserrat, Arial, sans-serif;
+      background: #e5d0c4;
+      color: #000;
+      margin: 0;
+      padding: 24px;
+    }
+    main {
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 { font-size: 28px; }
+    input:not([type="checkbox"]), select {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0 16px;
+      box-sizing: border-box;
+    }
+    video {
+      width: 100%;
+      background: #111;
+      border-radius: 8px;
+    }
+    button {
+      background: #eeee22;
+      border: 1px solid black;
+      border-radius: 6px;
+      padding: 12px 18px;
+      margin: 8px 4px 8px 0;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .4; }
+    label { display: block; }
+    .consent { margin: 20px 0; line-height: 1.5; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Share your experience with Hilary Corna</h1>
+  <p>We'd love to hear about your experience
+     working with Hilary and her team.</p>
+
+  <label>Full name
+    <input id="name" maxlength="100">
+  </label>
+
+  <label>Company / Role
+    <input id="company" maxlength="150">
+  </label>
+
+  <label>Service experienced
+    <select id="service">
+      <option>Company consulting</option>
+      <option>FlowState Workshop</option>
+      <option>Ops Edge Academy</option>
+      <option>Keynote / Speaking</option>
+      <option>Other</option>
+    </select>
+  </label>
+
+  <p><strong>Need inspiration?</strong></p>
+  <p>What challenge brought you to Hilary?
+     What changed after working together?
+     What would you tell another client?</p>
+
+  <video id="video" playsinline autoplay muted></video>
+  <p id="timer">Maximum recording: 30 seconds</p>
+
+  <button id="start">Record</button>
+  <button id="stop" disabled>Stop</button>
+  <button id="retry" disabled>Re-record</button>
+
+  <label class="consent">
+    <input id="consent" type="checkbox">
+    <span id="consentText">I authorize Hilary Corna,
+    LLC to store, edit, and use my video testimonial,
+    name, company, and likeness for promotional
+    purposes, including websites, social media,
+    presentations, and marketing materials.</span>
+  </label>
+
+  <button id="submit" disabled>Submit testimonial</button>
+  <p id="status" role="status"></p>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let stream, recorder, chunks = [], recordedBlob;
+  let interval, elapsed = 0;
+
+  function message(text) {
+    $("status").textContent = text;
+  }
+
+  function stopCamera() {
+    if (stream) stream.getTracks()
+      .forEach(track => track.stop());
+    stream = null;
+  }
+
+  function supportedType() {
+    return [
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+      "video/mp4"
+    ].find(t => MediaRecorder.isTypeSupported(t));
+  }
+
+  $("start").onclick = async () => {
+    try {
+      stopCamera();
+      recordedBlob = null;
+      chunks = [];
+      elapsed = 0;
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 480 },
+          height: { ideal: 360 },
+          frameRate: { ideal: 15 }
+        },
+        audio: true
+      });
+
+      $("video").srcObject = stream;
+      $("video").muted = true;
+      $("video").controls = false;
+
+      const type = supportedType();
+      recorder = new MediaRecorder(stream, {
+        ...(type ? { mimeType: type } : {}),
+        videoBitsPerSecond: 350000,
+        audioBitsPerSecond: 32000
+      });
+
+      recorder.ondataavailable = e => {
+        if (e.data.size) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        clearInterval(interval);
+        stopCamera();
+
+        recordedBlob = new Blob(chunks, {
+          type: recorder.mimeType.split(";")[0]
+        });
+
+        $("video").srcObject = null;
+        $("video").src = URL.createObjectURL(recordedBlob);
+        $("video").muted = false;
+        $("video").controls = true;
+
+        $("start").disabled = false;
+        $("stop").disabled = true;
+        $("retry").disabled = false;
+        $("submit").disabled = false;
+
+        message("Preview your video before submitting.");
+      };
+
+      recorder.start(1000);
+      $("start").disabled = true;
+      $("stop").disabled = false;
+      $("retry").disabled = true;
+      $("submit").disabled = true;
+
+      message("Recording...");
+
+      interval = setInterval(() => {
+        elapsed++;
+        $("timer").textContent = `${elapsed} / 30 seconds`;
+        if (elapsed >= 30 && recorder.state === "recording") {
+          recorder.stop();
+        }
+      }, 1000);
+    } catch (err) {
+      stopCamera();
+      message("Camera error: " + err.message);
+    }
+  };
+
+  $("stop").onclick = () => {
+    if (recorder && recorder.state === "recording") {
+      recorder.stop();
+    }
+  };
+
+  $("retry").onclick = () => $("start").click();
+
+  $("submit").onclick = () => {
+    if (!$("name").value.trim() ||
+        !$("consent").checked || !recordedBlob) {
+      message("Please enter your name, record a video, and consent.");
+      return;
+    }
+
+    if (recordedBlob.size > 8 * 1024 * 1024) {
+      message("Video is too large. Please record again.");
+      return;
+    }
+
+    $("submit").disabled = true;
+    message("Uploading. Please keep this page open...");
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const data = {
+        name: $("name").value.trim(),
+        company: $("company").value.trim(),
+        service: $("service").value,
+        consent: true,
+        consentText: $("consentText").textContent.trim(),
+        mimeType: recordedBlob.type,
+        video: reader.result.split(",")[1]
+      };
+
+      google.script.run
+        .withSuccessHandler(() => {
+          message("Thank you! Your video was submitted.");
+          $("retry").disabled = true;
+        })
+        .withFailureHandler(err => {
+          message("Upload failed: " + err.message);
+          $("submit").disabled = false;
+        })
+        .saveTestimonial(data);
+    };
+
+    reader.readAsDataURL(recordedBlob);
+  };
+</script>
+</body>
+</html>
