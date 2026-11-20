@@ -224,35 +224,24 @@
         video: reader.result.split(",")[1]
       };
 
-      
-fetch(UPLOAD_URL, {
-  method: "POST",
-  mode: "no-cors",
-  headers: {
-    "Content-Type": "text/plain"
-  },
-  body: JSON.stringify(data)
-})
-.then(() => {
-  message(
-    "Upload request sent. Check your Google Drive folder."
-  );
-  $("retry").disabled = true;
-})
-.catch(err => {
-  message("Upload request failed: " + err.message);
-  $("submit").disabled = false;
-});
-
-        .withSuccessHandler(() => {
-          message("Thank you! Your video was submitted.");
-          $("retry").disabled = true;
-        })
-        .withFailureHandler(err => {
-          message("Upload failed: " + err.message);
-          $("submit").disabled = false;
-        })
-        .saveTestimonial(data);
+      fetch(UPLOAD_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "text/plain"
+        },
+        body: JSON.stringify(data)
+      })
+      .then(() => {
+        message(
+          "Upload request sent. Check your Google Drive folder."
+        );
+        $("retry").disabled = true;
+      })
+      .catch(err => {
+        message("Upload request failed: " + err.message);
+        $("submit").disabled = false;
+      });
     };
 
     reader.readAsDataURL(recordedBlob);
