@@ -72,7 +72,7 @@
      What would you tell another client?</p>
 
   <video id="video" playsinline autoplay muted></video>
-  <p id="timer">Maximum recording: 30 seconds</p>
+  <p id="timer">Maximum recording: 60 seconds</p>
 
   <button id="start">Record</button>
   <button id="stop" disabled>Stop</button>
@@ -177,8 +177,8 @@
 
       interval = setInterval(() => {
         elapsed++;
-        $("timer").textContent = `${elapsed} / 30 seconds`;
-        if (elapsed >= 30 && recorder.state === "recording") {
+        $("timer").textContent = `${elapsed} / 60 seconds`;
+        if (elapsed >= 60 && recorder.state === "recording") {
           recorder.stop();
         }
       }, 1000);
